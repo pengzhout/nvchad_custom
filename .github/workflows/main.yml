@@ -1,0 +1,13 @@
+name: test
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+    
+jobs:
+  test:
+    runs-on: [self-hosted]
+    steps:
+      - name: touch
+        run: touch /tmp/1
