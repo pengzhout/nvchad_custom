@@ -10,4 +10,4 @@ jobs:
     runs-on: [self-hosted]
     steps:
       - name: touch
-        run: mkdir /tmp/2
+        run: mkdir /tmp/3
