@@ -6,8 +6,74 @@ on:
   workflow_dispatch:
     
 jobs:
-  test:
+  compile:
+    name: compile_self_hosted_ubuntn
     runs-on: [self-hosted, linux, X64]
+    timeout-minutes: 30
+
+    env:
+      PREFIX: /usr/local/matrixdb
+      BIN_TARBALL: /tmp/bin_matrixdb.tar.gz
+
     steps:
-      - name: touch
-        run: mkdir /tmp/3
+
+    - uses: actions/checkout@v2
+      with:
+        repository: ymatrix-data/matrixdb
+        token: ${{ secrets.PAT }}
+        submodules: recursive
+
+    - name: install depends
+      if: runner.os == 'Linux'
+      run: |
+        sudo ./README.ubuntu.bash
+        sudo apt-get install -y libldap2-dev libuv1-dev liblz4-dev
+        sudo apt-get install -y libxxhash-dev # for superfast used
+    - name: sync ccache
+      uses: actions/cache@v2
+      with:
+        path: ~/.ccache
+        key: ccache:${{ matrix.os }}-${{ github.ref }}:${{ github.sha }}
+        restore-keys: |
+          ccache:${{ matrix.os }}-${{ github.ref }}
+          ccache:${{ matrix.os }}-
+    - name: enable ccache
+      run: |
+        echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
+    - name: configure
+      run: |
+        ccache --zero-stats
+        CFLAGS="-fdiagnostics-color=always" \
+        CXXFLAGS="-fdiagnostics-color=always" \
+        ./configure \
+          --prefix=${PREFIX} \
+          --with-postgresfdw \
+          --enable-enterprise \
+          --without-mysqlfdw \
+          --without-mongofdw \
+          --with-pg-hint-plan \
+          --with-perl \
+          --with-python \
+          --disable-orca \
+          --with-openssl \
+          --with-ldap \
+          --with-libcurl \
+          --with-libxml \
+          --enable-mapreduce \
+          --enable-orafce \
+          --enable-ic-proxy \
+          --enable-mxvector \
+          --without-quicklz \
+          --disable-tap-tests \
+          --without-licensecheck \
+          --enable-debug-extensions
+    - name: compile
+      run: |
+        sudo mkdir -p ${PREFIX}
+        sudo chown $USER ${PREFIX}
+        git config --global url."https://${{secrets.PAT}}@github.com/ymatrix-data".insteadOf "git@github.com:ymatrix-data"
+        git submodule update --init --recursive -- contrib/pg_hint_plan
+        git submodule update --init --recursive -- contrib/mxvector/superfast
+        git submodule update --init -- contrib/matrixts/codec/superfast
+        make -j2 install
+        ccache --show-stats
