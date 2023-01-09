@@ -9,7 +9,7 @@ jobs:
   compile:
     name: compile_self_hosted_ubuntn
     runs-on: [self-hosted, linux, X64]
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     env:
       PREFIX: /usr/local/matrixdb
